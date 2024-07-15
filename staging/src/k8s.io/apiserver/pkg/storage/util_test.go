@@ -151,7 +151,7 @@ func TestGetCurrentResourceVersionFromStorage(t *testing.T) {
 	require.Equal(t, currentPodRV, podRV, "didn't expect to see the pod's RV changed")
 
 	// Ensure parsing values larger than int.MAX_VALUE
-	largeRV := uint64(math.MaxInt64 - 1) // does not fit in int32
+	largeRV := int64(math.MaxInt64 - 1) // does not fit in int32
 	require.True(t, largeRV > math.MaxInt32)
 	fakestorage := &storagetesting.FakeStorageInterface{
 		FakeGetList: func(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
@@ -159,13 +159,13 @@ func TestGetCurrentResourceVersionFromStorage(t *testing.T) {
 			if !ok {
 				return fmt.Errorf("expected pod list")
 			}
-			pods.SetResourceVersion(strconv.FormatInt(int64(largeRV), 10))
+			pods.SetResourceVersion(strconv.FormatInt(largeRV, 10))
 			return nil
 		},
 	}
 	currentStorageRV, err = storage.GetCurrentResourceVersionFromStorage(context.TODO(), fakestorage, func() runtime.Object { return &example.PodList{} }, "/pods", "Pod")
 	require.NoError(t, err)
-	require.Equal(t, largeRV, currentStorageRV)
+	require.Equal(t, uint64(largeRV), currentStorageRV)
 }
 
 func TestHasInitialEventsEndBookmarkAnnotation(t *testing.T) {
