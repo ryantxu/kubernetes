@@ -18,7 +18,10 @@ package storage_test
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"math/rand"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -35,6 +38,7 @@ import (
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/etcd3"
 	etcd3testing "k8s.io/apiserver/pkg/storage/etcd3/testing"
+	storagetesting "k8s.io/apiserver/pkg/storage/testing"
 	"k8s.io/apiserver/pkg/storage/value/encrypt/identity"
 )
 
@@ -145,6 +149,23 @@ func TestGetCurrentResourceVersionFromStorage(t *testing.T) {
 	currentPodRV, err := versioner.ParseResourceVersion(currentPod.ResourceVersion)
 	require.NoError(t, err)
 	require.Equal(t, currentPodRV, podRV, "didn't expect to see the pod's RV changed")
+
+	// Ensure parsing values larger than int.MAX_VALUE
+	largeRV := uint64(math.MaxInt64 - 1) // does not fit in int32
+	require.True(t, largeRV > math.MaxInt32)
+	fakestorage := &storagetesting.FakeStorageInterface{
+		FakeGetList: func(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
+			pods, ok := listObj.(*example.PodList)
+			if !ok {
+				return fmt.Errorf("expected pod list")
+			}
+			pods.SetResourceVersion(strconv.FormatInt(int64(largeRV), 10))
+			return nil
+		},
+	}
+	currentStorageRV, err = storage.GetCurrentResourceVersionFromStorage(context.TODO(), fakestorage, func() runtime.Object { return &example.PodList{} }, "/pods", "Pod")
+	require.NoError(t, err)
+	require.Equal(t, largeRV, currentStorageRV)
 }
 
 func TestHasInitialEventsEndBookmarkAnnotation(t *testing.T) {

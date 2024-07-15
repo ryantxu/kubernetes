@@ -109,7 +109,7 @@ func GetCurrentResourceVersionFromStorage(ctx context.Context, storage Interface
 		return 0, fmt.Errorf("unable to extract a list accessor from %T", emptyList)
 	}
 
-	currentResourceVersion, err := strconv.Atoi(emptyListAccessor.GetResourceVersion())
+	currentResourceVersion, err := strconv.ParseInt(emptyListAccessor.GetResourceVersion(), 10, 64)
 	if err != nil {
 		return 0, err
 	}
